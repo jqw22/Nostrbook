@@ -20,13 +20,15 @@ Uses the existing NIP-78 (kind 30078, "Arbitrary Custom App Data") addressable e
 {
   "title": "My Note",
   "content": "The note body text...",
-  "updated_at": 1690000000
+  "updated_at": 1690000000,
+  "follow_up_date": 1692000000
 }
 ```
 
 - `title` (string) — Note title. May be empty.
 - `content` (string) — Note body. May be empty.
 - `updated_at` (number) — Unix timestamp (seconds) of last save.
+- `follow_up_date` (number, optional) — Unix timestamp (seconds) for an optional follow-up reminder date.
 
 ### Encryption
 

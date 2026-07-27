@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { X, Plus, Loader2, Trash2 } from 'lucide-react';
+import { X, Plus, Loader2, Trash2, Calendar } from 'lucide-react';
 import type { EncryptedNote } from '@/hooks/useEncryptedNotes';
 
 export interface NoteEditorProps {
@@ -24,6 +24,7 @@ export interface NoteEditorProps {
     title: string;
     content: string;
     tags: string[];
+    follow_up_date?: number | null;
   }) => void;
   onDelete?: (id: string) => void;
   isSaving?: boolean;
@@ -45,6 +46,7 @@ export function NoteEditor({
   const [content, setContent] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
+  const [followUpDate, setFollowUpDate] = useState('');
 
   // Reset form when dialog opens with a different note
   useEffect(() => {
@@ -53,6 +55,11 @@ export function NoteEditor({
       setContent(note?.data.content ?? '');
       setTags(note?.tags ?? []);
       setTagInput('');
+      setFollowUpDate(
+        note?.data.follow_up_date
+          ? new Date(note.data.follow_up_date * 1000).toISOString().slice(0, 10)
+          : '',
+      );
     }
   }, [isOpen, note]);
 
@@ -82,11 +89,15 @@ export function NoteEditor({
   );
 
   const handleSave = () => {
+    const followUpTimestamp = followUpDate
+      ? Math.floor(new Date(followUpDate + 'T00:00:00').getTime() / 1000)
+      : null;
     onSave({
       id: note ? note.event.tags.find(([n]) => n === 'd')?.[1] ?? '' : crypto.randomUUID(),
       title: title.trim(),
       content: content.trim(),
       tags,
+      follow_up_date: followUpTimestamp,
     });
   };
 
@@ -97,11 +108,16 @@ export function NoteEditor({
     }
   };
 
+  const existingFollowUpStr = note?.data.follow_up_date
+    ? new Date(note.data.follow_up_date * 1000).toISOString().slice(0, 10)
+    : '';
+
   const hasChanges = isNew
-    ? title.trim() || content.trim() || tags.length > 0
+    ? title.trim() || content.trim() || tags.length > 0 || followUpDate
     : title.trim() !== (note?.data.title ?? '') ||
       content.trim() !== (note?.data.content ?? '') ||
-      JSON.stringify(tags) !== JSON.stringify(note?.tags ?? []);
+      JSON.stringify(tags) !== JSON.stringify(note?.tags ?? []) ||
+      followUpDate !== existingFollowUpStr;
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -142,6 +158,35 @@ export function NoteEditor({
               placeholder="Write your private note here..."
               className="min-h-[200px] resize-y"
             />
+          </div>
+
+          {/* Follow-up date */}
+          <div className="space-y-2">
+            <label htmlFor="note-followup" className="text-sm font-medium flex items-center gap-1.5">
+              <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+              Follow-up date
+              <span className="text-xs text-muted-foreground font-normal">(optional)</span>
+            </label>
+            <div className="flex items-center gap-2">
+              <Input
+                id="note-followup"
+                type="date"
+                value={followUpDate}
+                onChange={(e) => setFollowUpDate(e.target.value)}
+                className="max-w-[200px]"
+              />
+              {followUpDate && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setFollowUpDate('')}
+                  className="text-xs text-muted-foreground"
+                >
+                  Clear
+                </Button>
+              )}
+            </div>
           </div>
 
           {/* Tags */}

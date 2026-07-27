@@ -9,6 +9,8 @@ export interface NoteData {
   title: string;
   content: string;
   updated_at: number;
+  /** Optional follow-up date as a Unix timestamp (seconds). */
+  follow_up_date?: number;
 }
 
 /** A fully resolved encrypted note. */
@@ -25,6 +27,8 @@ export interface SaveNoteParams {
   title: string;
   content: string;
   tags: string[];
+  /** Optional follow-up date as a Unix timestamp (seconds), or null to clear. */
+  follow_up_date?: number | null;
 }
 
 const NOTE_KIND = 30078;
@@ -95,6 +99,9 @@ export function useEncryptedNotes(): {
         content: params.content,
         updated_at: Math.floor(Date.now() / 1000),
       };
+      if (params.follow_up_date) {
+        noteData.follow_up_date = params.follow_up_date;
+      }
 
       const ciphertext = await user.signer.nip44.encrypt(
         user.pubkey,

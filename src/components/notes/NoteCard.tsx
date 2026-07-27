@@ -1,3 +1,4 @@
+import { Calendar } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -17,11 +18,21 @@ export function NoteCard({ note, onClick, className }: NoteCardProps) {
     { month: 'short', day: 'numeric', year: 'numeric' },
   );
 
+  const hasFollowUp = !!data.follow_up_date;
+  const followUpDate = hasFollowUp
+    ? new Date(data.follow_up_date! * 1000).toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      })
+    : null;
+
   return (
     <Card
       className={cn(
         'cursor-pointer transition-all hover:shadow-md hover:border-primary/30 motion-safe:transition-colors',
         'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+        hasFollowUp && 'bg-pink-50 border-pink-200',
         className,
       )}
       onClick={onClick}
@@ -39,6 +50,12 @@ export function NoteCard({ note, onClick, className }: NoteCardProps) {
           <h3 className="text-lg font-semibold leading-tight line-clamp-2">
             {data.title || 'Untitled Note'}
           </h3>
+          {hasFollowUp && followUpDate && (
+            <span className="shrink-0 flex items-center gap-1 text-xs text-pink-700 bg-pink-100 rounded-md px-2 py-1 font-medium">
+              <Calendar className="h-3 w-3" />
+              {followUpDate}
+            </span>
+          )}
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
