@@ -1,8 +1,39 @@
+import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Calendar } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import type { EncryptedNote } from '@/hooks/useEncryptedNotes';
+
+function MarkdownPreview({ content }: { content: string }) {
+  return (
+    <div className="text-sm text-muted-foreground line-clamp-3 [&_*]:inline [&_*]:whitespace-normal">
+      <Markdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          h1: ({ children }) => <strong>{children} </strong>,
+          h2: ({ children }) => <strong>{children} </strong>,
+          h3: ({ children }) => <strong>{children} </strong>,
+          p: ({ children }) => <span>{children} </span>,
+          ul: ({ children }) => <span>{children}</span>,
+          ol: ({ children }) => <span>{children}</span>,
+          li: ({ children }) => <span>• {children} </span>,
+          hr: () => <span className="mx-1">—</span>,
+          blockquote: ({ children }) => (
+            <span className="italic">{children}</span>
+          ),
+          code: ({ children }) => (
+            <code className="bg-muted rounded px-0.5 text-xs">{children}</code>
+          ),
+          pre: ({ children }) => <span>{children}</span>,
+        }}
+      >
+        {content}
+      </Markdown>
+    </div>
+  );
+}
 
 export interface NoteCardProps {
   note: EncryptedNote;
@@ -59,11 +90,7 @@ export function NoteCard({ note, onClick, className }: NoteCardProps) {
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        {data.content && (
-          <p className="text-sm text-muted-foreground line-clamp-3 whitespace-pre-line">
-            {data.content}
-          </p>
-        )}
+        {data.content && <MarkdownPreview content={data.content} />}
         <div className="flex items-center justify-between gap-2">
           <div className="flex flex-wrap gap-1.5">
             {tags.length > 0 ? (
