@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { Bold, Italic, List, ListOrdered, Underline } from 'lucide-react';
+import { Bold, Italic, ListOrdered } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -21,18 +21,6 @@ const tools = [
     label: 'Italic',
     before: '*',
     after: '*',
-  },
-  {
-    icon: Underline,
-    label: 'Underline',
-    before: '<u>',
-    after: '</u>',
-  },
-  {
-    icon: List,
-    label: 'Bullet list',
-    before: '\n- ',
-    after: '',
   },
   {
     icon: ListOrdered,
