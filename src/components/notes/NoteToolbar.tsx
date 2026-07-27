@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback } from 'react';
 import { Bold, Italic, List, ListOrdered, Underline } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -48,22 +48,15 @@ export function NoteToolbar({ textareaRef, onFormat, className }: NoteToolbarPro
       const textarea = textareaRef.current;
       if (!textarea) return;
 
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
-      const selected = textarea.value.slice(start, end);
-
-      // If text is selected, wrap it; otherwise insert a placeholder
-      const insertion = selected
-        ? { before: before + selected, after: after }
-        : { before, after };
-
-      onFormat(insertion);
+      onFormat({ before, after });
 
       // Restore focus and adjust selection
       requestAnimationFrame(() => {
         textarea.focus();
+        const start = textarea.selectionStart;
+        const selectedLen = textarea.selectionEnd - start;
         const newStart = start + before.length;
-        const newEnd = end + before.length + (selected.length || 0);
+        const newEnd = start + before.length + selectedLen;
         textarea.setSelectionRange(newStart, newEnd);
       });
     },
