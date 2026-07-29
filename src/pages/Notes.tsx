@@ -407,6 +407,7 @@ export default function NotesPage() {
           onDelete={handleDelete}
           isSaving={saveNote.isPending}
           isDeleting={deleteNote.isPending}
+          suggestedTags={allTags}
         />
       </div>
     </div>

@@ -30,6 +30,8 @@ export interface NoteEditorProps {
   onDelete?: (id: string) => void;
   isSaving?: boolean;
   isDeleting?: boolean;
+  /** Existing tags from all notes, for autocomplete suggestions. */
+  suggestedTags?: string[];
 }
 
 export function NoteEditor({
@@ -40,6 +42,7 @@ export function NoteEditor({
   onDelete,
   isSaving = false,
   isDeleting = false,
+  suggestedTags = [],
 }: NoteEditorProps) {
   const isNew = !note;
 
@@ -48,8 +51,27 @@ export function NoteEditor({
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
   const [followUpDate, setFollowUpDate] = useState('');
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // Filtered suggestions from existing tags, excluding already-added tags
+  const filteredSuggestions = tagInput.trim()
+    ? suggestedTags
+        .filter(
+          (t) =>
+            t.toLowerCase().startsWith(tagInput.trim().toLowerCase()) &&
+            !tags.includes(t),
+        )
+        .slice(0, 6)
+    : [];
+
+  const showSuggestions = filteredSuggestions.length > 0;
+
+  // Reset highlight when input changes
+  useEffect(() => {
+    setHighlightedIndex(-1);
+  }, [tagInput]);
   useEffect(() => {
     if (isOpen) {
       setTitle(note?.data.title ?? '');
@@ -64,13 +86,26 @@ export function NoteEditor({
     }
   }, [isOpen, note]);
 
-  const addTag = useCallback(() => {
-    const trimmed = tagInput.trim().toLowerCase();
-    if (trimmed && !tags.includes(trimmed)) {
-      setTags((prev) => [...prev, trimmed]);
-    }
-    setTagInput('');
-  }, [tagInput, tags]);
+  const handleTagBlur = useCallback(() => {
+    // Delay to allow click on suggestion to register first
+    setTimeout(() => {
+      if (tagInput.trim()) {
+        addTag();
+      }
+    }, 150);
+  }, [addTag, tagInput]);
+
+  const addTag = useCallback(
+    (tagOverride?: string) => {
+      const trimmed = (tagOverride ?? tagInput).trim().toLowerCase();
+      if (trimmed && !tags.includes(trimmed)) {
+        setTags((prev) => [...prev, trimmed]);
+      }
+      setTagInput('');
+      setHighlightedIndex(-1);
+    },
+    [tagInput, tags],
+  );
 
   const removeTag = useCallback((tag: string) => {
     setTags((prev) => prev.filter((t) => t !== tag));
@@ -78,15 +113,44 @@ export function NoteEditor({
 
   const handleTagKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === 'Enter' || e.key === ',') {
+      // Arrow-down: highlight next suggestion
+      if (e.key === 'ArrowDown' && showSuggestions) {
+        e.preventDefault();
+        setHighlightedIndex((prev) =>
+          prev < filteredSuggestions.length - 1 ? prev + 1 : 0,
+        );
+        return;
+      }
+      // Arrow-up: highlight previous suggestion
+      if (e.key === 'ArrowUp' && showSuggestions) {
+        e.preventDefault();
+        setHighlightedIndex((prev) =>
+          prev > 0 ? prev - 1 : filteredSuggestions.length - 1,
+        );
+        return;
+      }
+      // Enter: add highlighted suggestion if any, otherwise add typed value
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (showSuggestions && highlightedIndex >= 0) {
+          addTag(filteredSuggestions[highlightedIndex]);
+        } else {
+          addTag();
+        }
+        return;
+      }
+      // Comma: add typed value
+      if (e.key === ',') {
         e.preventDefault();
         addTag();
+        return;
       }
+      // Backspace on empty: remove last tag
       if (e.key === 'Backspace' && !tagInput && tags.length > 0) {
         removeTag(tags[tags.length - 1]);
       }
     },
-    [addTag, tagInput, tags, removeTag],
+    [addTag, tagInput, tags, removeTag, showSuggestions, highlightedIndex, filteredSuggestions],
   );
 
   const handleSave = () => {
@@ -225,34 +289,59 @@ export function NoteEditor({
             <label htmlFor="note-tags" className="text-sm font-medium">
               Tags
             </label>
-            <div className="flex flex-wrap items-center gap-1.5 rounded-md border border-input bg-transparent px-3 py-2 min-h-[42px] focus-within:ring-1 focus-within:ring-ring">
-              {tags.map((tag) => (
-                <Badge
-                  key={tag}
-                  variant="secondary"
-                  className="gap-1 pr-1"
-                >
-                  {tag}
-                  <button
-                    type="button"
-                    onClick={() => removeTag(tag)}
-                    className="ml-0.5 rounded-full p-0.5 hover:bg-muted-foreground/20 transition-colors"
-                    aria-label={`Remove tag ${tag}`}
+            <div className="relative">
+              <div className="flex flex-wrap items-center gap-1.5 rounded-md border border-input bg-transparent px-3 py-2 min-h-[42px] focus-within:ring-1 focus-within:ring-ring">
+                {tags.map((tag) => (
+                  <Badge
+                    key={tag}
+                    variant="secondary"
+                    className="gap-1 pr-1"
                   >
-                    <X className="h-3 w-3" />
-                  </button>
-                </Badge>
-              ))}
-              <input
-                id="note-tags"
-                type="text"
-                value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
-                onKeyDown={handleTagKeyDown}
-                onBlur={addTag}
-                placeholder={tags.length === 0 ? 'Add tags...' : ''}
-                className="flex-1 min-w-[120px] bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-              />
+                    {tag}
+                    <button
+                      type="button"
+                      onClick={() => removeTag(tag)}
+                      className="ml-0.5 rounded-full p-0.5 hover:bg-muted-foreground/20 transition-colors"
+                      aria-label={`Remove tag ${tag}`}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+                <input
+                  id="note-tags"
+                  type="text"
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  onKeyDown={handleTagKeyDown}
+                  onBlur={handleTagBlur}
+                  placeholder={tags.length === 0 ? 'Add tags...' : ''}
+                  className="flex-1 min-w-[120px] bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                />
+              </div>
+
+              {/* Autocomplete dropdown */}
+              {showSuggestions && (
+                <div className="absolute top-full left-0 right-0 z-10 mt-1 rounded-md border border-input bg-popover shadow-md max-h-[160px] overflow-y-auto">
+                  {filteredSuggestions.map((tag, idx) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      className={`w-full text-left px-3 py-1.5 text-sm transition-colors ${
+                        idx === highlightedIndex
+                          ? 'bg-accent text-accent-foreground'
+                          : 'hover:bg-muted'
+                      }`}
+                      onMouseDown={(e) => {
+                        e.preventDefault(); // prevent blur on input
+                      }}
+                      onClick={() => addTag(tag)}
+                    >
+                      {tag}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <p className="text-xs text-muted-foreground">
               Press Enter or comma to add a tag. Tags are stored in cleartext for filtering.
