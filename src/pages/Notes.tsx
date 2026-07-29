@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useSeoMeta } from '@unhead/react';
-import { Plus, NotebookPen, Shield, Key, AlertTriangle, Search, ArrowUpDown, X } from 'lucide-react';
+import { Plus, NotebookPen, Shield, Key, AlertTriangle, Search, ArrowUpDown, X, Calendar } from 'lucide-react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useEncryptedNotes, type EncryptedNote, type SaveNoteParams } from '@/hooks/useEncryptedNotes';
@@ -31,6 +31,7 @@ const SORT_LABELS: Record<SortMode, string> = {
 };
 
 const UNTAGGED_KEY = '__untagged__';
+const FOLLOWUP_KEY = '__followup__';
 
 export default function NotesPage() {
   useSeoMeta({
@@ -52,36 +53,46 @@ export default function NotesPage() {
   const isError = notesQuery.isError;
   const error = notesQuery.error;
 
-  // Collect all unique tags across all notes, plus count untagged
-  const { allTags, untaggedCount } = useMemo(() => {
+  // Collect all unique tags across all notes, plus count untagged/followup
+  const { allTags, untaggedCount, followupCount } = useMemo(() => {
     const tagSet = new Set<string>();
     let untagged = 0;
+    let followup = 0;
     for (const note of notes) {
       if (note.tags.length === 0) {
         untagged++;
+      }
+      if (note.data.follow_up_date) {
+        followup++;
       }
       for (const tag of note.tags) {
         tagSet.add(tag);
       }
     }
-    return { allTags: Array.from(tagSet).sort(), untaggedCount: untagged };
+    return { allTags: Array.from(tagSet).sort(), untaggedCount: untagged, followupCount: followup };
   }, [notes]);
 
   // Filter and sort notes
   const filteredNotes = useMemo(() => {
     let result = notes;
 
+    const wantsFollowup = selectedTags.has(FOLLOWUP_KEY);
+
     // Filter by multi-select tags (OR logic)
     if (selectedTags.size > 0) {
       const wantsUntagged = selectedTags.has(UNTAGGED_KEY);
       const realTags = new Set(
-        Array.from(selectedTags).filter((t) => t !== UNTAGGED_KEY),
+        Array.from(selectedTags).filter(
+          (t) => t !== UNTAGGED_KEY && t !== FOLLOWUP_KEY,
+        ),
       );
 
       result = result.filter((note) => {
-        if (wantsUntagged && note.tags.length === 0) return true;
-        if (realTags.size > 0 && note.tags.some((tag) => realTags.has(tag))) return true;
-        return false;
+        let match = false;
+        if (wantsUntagged && note.tags.length === 0) match = true;
+        if (wantsFollowup && note.data.follow_up_date) match = true;
+        if (realTags.size > 0 && note.tags.some((tag) => realTags.has(tag))) match = true;
+        return match;
       });
     }
 
@@ -95,24 +106,30 @@ export default function NotesPage() {
       );
     }
 
-    // Sort
-    switch (sortMode) {
-      case 'newest':
-        result = [...result].sort((a, b) => b.data.updated_at - a.data.updated_at);
-        break;
-      case 'oldest':
-        result = [...result].sort((a, b) => a.data.updated_at - b.data.updated_at);
-        break;
-      case 'title-asc':
-        result = [...result].sort((a, b) =>
-          (a.data.title || 'Untitled').localeCompare(b.data.title || 'Untitled'),
-        );
-        break;
-      case 'title-desc':
-        result = [...result].sort((a, b) =>
-          (b.data.title || 'Untitled').localeCompare(a.data.title || 'Untitled'),
-        );
-        break;
+    // Sort: follow-up filter forces ascending by follow-up date
+    if (wantsFollowup) {
+      result = [...result].sort(
+        (a, b) => (a.data.follow_up_date ?? 0) - (b.data.follow_up_date ?? 0),
+      );
+    } else {
+      switch (sortMode) {
+        case 'newest':
+          result = [...result].sort((a, b) => b.data.updated_at - a.data.updated_at);
+          break;
+        case 'oldest':
+          result = [...result].sort((a, b) => a.data.updated_at - b.data.updated_at);
+          break;
+        case 'title-asc':
+          result = [...result].sort((a, b) =>
+            (a.data.title || 'Untitled').localeCompare(b.data.title || 'Untitled'),
+          );
+          break;
+        case 'title-desc':
+          result = [...result].sort((a, b) =>
+            (b.data.title || 'Untitled').localeCompare(a.data.title || 'Untitled'),
+          );
+          break;
+      }
     }
 
     return result;
@@ -336,7 +353,7 @@ export default function NotesPage() {
         </div>
 
         {/* Tag filter bar */}
-        {(allTags.length > 0 || untaggedCount > 0) && (
+        {(allTags.length > 0 || untaggedCount > 0 || followupCount > 0) && (
           <ScrollArea className="pb-1">
             <div className="flex gap-1.5 flex-nowrap items-center">
               {selectedTags.size > 0 && (
@@ -347,6 +364,16 @@ export default function NotesPage() {
                 >
                   Clear
                   <X className="h-3 w-3" />
+                </Badge>
+              )}
+              {followupCount > 0 && (
+                <Badge
+                  variant={selectedTags.has(FOLLOWUP_KEY) ? 'default' : 'outline'}
+                  className="cursor-pointer shrink-0"
+                  onClick={() => toggleTag(FOLLOWUP_KEY)}
+                >
+                  <Calendar className="h-3 w-3 mr-1" />
+                  Follow-up ({followupCount})
                 </Badge>
               )}
               {untaggedCount > 0 && (
