@@ -86,15 +86,6 @@ export function NoteEditor({
     }
   }, [isOpen, note]);
 
-  const handleTagBlur = useCallback(() => {
-    // Delay to allow click on suggestion to register first
-    setTimeout(() => {
-      if (tagInput.trim()) {
-        addTag();
-      }
-    }, 150);
-  }, [addTag, tagInput]);
-
   const addTag = useCallback(
     (tagOverride?: string) => {
       const trimmed = (tagOverride ?? tagInput).trim().toLowerCase();
@@ -106,6 +97,15 @@ export function NoteEditor({
     },
     [tagInput, tags],
   );
+
+  const handleTagBlur = useCallback(() => {
+    // Delay to allow click on suggestion to register first
+    setTimeout(() => {
+      if (tagInput.trim()) {
+        addTag();
+      }
+    }, 150);
+  }, [addTag, tagInput]);
 
   const removeTag = useCallback((tag: string) => {
     setTags((prev) => prev.filter((t) => t !== tag));
