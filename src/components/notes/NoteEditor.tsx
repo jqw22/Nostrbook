@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -13,7 +13,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { X, Plus, Loader2, Trash2, Calendar } from 'lucide-react';
 import type { EncryptedNote } from '@/hooks/useEncryptedNotes';
-import { NoteToolbar } from './NoteToolbar';
 
 export interface NoteEditorProps {
   /** Existing note to edit, or undefined for a new note. */
@@ -52,8 +51,6 @@ export function NoteEditor({
   const [tagInput, setTagInput] = useState('');
   const [followUpDate, setFollowUpDate] = useState('');
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
-
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   // Filtered suggestions from existing tags, excluding already-added tags
   const filteredSuggestions = tagInput.trim()
@@ -173,31 +170,6 @@ export function NoteEditor({
     }
   };
 
-  const handleFormat = useCallback(
-    ({ before, after }: { before: string; after: string }) => {
-      const textarea = textareaRef.current;
-      if (!textarea) return;
-
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
-      const selected = textarea.value.slice(start, end);
-      const replacement = before + selected + after;
-
-      setContent(
-        textarea.value.slice(0, start) + replacement + textarea.value.slice(end),
-      );
-
-      // Restore cursor position after React re-render
-      requestAnimationFrame(() => {
-        textarea.focus();
-        const newStart = start + before.length;
-        const newEnd = end + before.length;
-        textarea.setSelectionRange(newStart, newEnd);
-      });
-    },
-    [],
-  );
-
   const existingFollowUpStr = note?.data.follow_up_date
     ? new Date(note.data.follow_up_date * 1000).toISOString().slice(0, 10)
     : '';
@@ -240,18 +212,13 @@ export function NoteEditor({
           <div className="space-y-2">
             <label htmlFor="note-content" className="text-sm font-medium">
               Content
-              <span className="text-xs text-muted-foreground font-normal ml-1.5">
-                (markdown)
-              </span>
             </label>
-            <NoteToolbar textareaRef={textareaRef} onFormat={handleFormat} />
             <Textarea
               id="note-content"
-              ref={textareaRef}
               value={content}
               onChange={(e) => setContent(e.target.value)}
               placeholder="Write your private note here..."
-              className="min-h-[200px] resize-y rounded-t-none"
+              className="min-h-[200px] resize-y"
             />
           </div>
 
